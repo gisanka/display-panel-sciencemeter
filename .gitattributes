@@ -1,0 +1,32 @@
+# set the default behavior to automatically detect text files, perform LF normalization
+# and don't include them in a release zip
+* text=auto export-ignore
+
+# files that should not be modified
+*.xcf binary
+*.ase binary
+*.blend binary
+
+# files that should be included in a release zip
+*license* export-ignore=false
+*LICENSE* export-ignore=false
+
+*.md export-ignore=false
+*.txt export-ignore=false
+*.lua export-ignore=false
+*.cfg export-ignore=false
+*.json export-ignore=false
+
+*.png export-ignore=false binary
+*.jpg export-ignore=false binary
+*.ogg export-ignore=false binary
+*.wav export-ignore=false binary
+*.opus export-ignore=false binary
+
+# simulation / tips and tricks related files
+*.zip export-ignore=false binary
+*.dat* export-ignore=false binary
+
+# include folders, exclude folders starting with .
+*/ export-ignore=false
+.*/ export-ignore
