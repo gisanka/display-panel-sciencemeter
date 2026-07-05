@@ -85,9 +85,8 @@ The mod does not add custom entities or items. The generated blueprints use Fact
 - The mod creates blueprint books only when you run the command; it does not place panels automatically.
 - Each blueprint contains one Display Panel.
 - The input signal must already be scaled to percent.
-- The Display Panel has 100 message entries. The generated scale covers `0-100`, with `49` skipped so `50` remains available within the limit.
-- Hidden or internal items can still appear if a loaded lab prototype lists them as lab inputs.
-- Curated color presets are incomplete for many modpacks; unknown packs use the fallback.
+- The Display Panel has 100 message entries. The generated scale covers `0-100`, with `49` skipped.
+- Curated color presets are incomplete for some modpacks; unknown packs use the rainbow-colored fallback.
 
 ## Generated Preset Files
 
