@@ -1,83 +1,108 @@
-[![Release](https://github.com/fgardt/factorio-mod-template/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/fgardt/factorio-mod-template/actions/workflows/release.yml)
-<!--                           ^======[REPLACE THIS]======^                                                                          ^======[REPLACE THIS]======^  -->
+# Display Panel Sciencemeter
 
-# factorio-mod-template
+[![Release](https://github.com/gisanka/display-panel-sciencemeter/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/gisanka/display-panel-sciencemeter/actions/workflows/release.yml)
 
-A small Factorio Mod template which also contains GitHub Actions for automatic changelog generation, packaging and releasing to the [Factorio Mod Portal](https://mods.factorio.com)
+Display Panel Sciencemeter creates a blueprint book of display-panel science meters for all science packs in your current game.
 
-# How it works
+Run one command and the mod generates a blueprint book containing one blueprint per science pack. Each blueprint contains a single display panel that shows the matching science pack icon, a colored 0-100% progress bar, and aligned percent text.
 
-This template uses [semantic-release](https://github.com/semantic-release/semantic-release) to automate the changelog generation aswell as packaging and releasing of the mod. \
-To achieve this it analyzes your commit messages to figure out what the new version should be and what to put into the changelog.
-Packaging and releasing to the factorio mod portal is done with [this plugin](https://github.com/fgardt/semantic-release-factorio). \
-Additionally the GitHub Action will also create a release in your repository on GitHub itself.
+## Features
 
-Once you push new commits to the main branch the release action will trigger. \
-First it will analyze all commits since the last release (determined from the last tag) to figure out if a new version should be released and what version it should be. \
-To make this possible you need to follow a commit message convention. The default convention this template uses is [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) with the following types:
+- Generates a blueprint book in-game from the science packs of the current game.
+- Creates one display-panel blueprint per science pack.
+- Uses translated science pack names for blueprint labels when available.
+- Colors each progress bar with a curated preset color and user-defined opacity.
+- Where no templates are available, rainbow colors are used.
+- Works with modded games because generation happens at runtime in the current save.
 
-| Commit type                 | Changelog section |
-| --------------------------- | ----------------- |
-| `feat` or `feature`         | `Features`        |
-| `fix`                       | `Bugfixes`        |
-| `perf` or `performance`     | `Optimizations`   |
-| `compat` or `compatibility` | `Compatibility`   |
-| `balance`                   | `Balancing`       |
-| `graphics`                  | `Graphics`        |
-| `sound`                     | `Sounds`          |
-| `gui`                       | `Gui`             |
-| `info`                      | `Info`            |
-| `locale`                    | `Locale`          |
-| `translate`                 | `Translation`     |
-| `control`                   | `Control`         |
-| `other`                     | `Changes`         |
+## Usage
 
-Because a push to the main branch triggers the release action it is recommended to work on a separate branch until your work is done and then merge that branch into main to release it. \
-_Or you just work locally and if you want to release you push your changes to main, up to you how you want to do it ;)_
+Open the console and run:
 
-# How to use
-
-## Repository setup
-
-Click the `Use this template` button and create your own repository.
-
-Once you have your new repository you need to add a Factorio token as a GitHub Actions secret so that the mod releasing can work. \
-To get the token go to [Factorio's website](https://factorio.com/login) and login with your account. \
-Then you need to go to your [profile](https://factorio.com/profile) and generate a new API key. \
-The API key needs `Upload Mods`, `Publish Mods` and `Edit Mods` permissions. Copy the generated key.
-
-Now you need to go to your repository settings > `Secrets and variables` > `Actions` and add a new Repository secret called `FACTORIO_TOKEN` with your copied key as the secret.
-
-## Mod setup
-
-- Swap out the [`LICENSE`](LICENSE) to your own liking _**(especially change out my name for yours)**_
-- Populate the [`info.json`](info.json) file with correct values _(the `version` field gets updated automatically)_
-- Add the corresponding text into [`locale.cfg`](locale/en/locale.cfg)
-- Add a `thumbnail.png` to the root of the repository
-
-More details about a mods structure can be found in the [documentation](https://lua-api.factorio.com/latest/auxiliary/mod-structure.html).
-
-# Misc
-
-## How the packaging works
-
-The [`semantic-release-factorio` plugin](https://github.com/fgardt/semantic-release-factorio) uses the `git archive` command to package the mod. \
-That way you can specify what folders / files to exclude from your packaged mod by specifying them in [`.gitattributes`](.gitattributes).
-
-If you want to locally test packaging of your mod you can run the following command:
-```sh
-git archive --format zip --prefix [YOUR-MOD-NAME]/ --worktree-attributes --output [YOUR-MOD-NAME]_[VERSION].zip HEAD
+```text
+/sciencemeter-book [opacity] [rainbow]
 ```
 
-## Changing the commit message convention
+The generated blueprint book is placed in your cursor. If your cursor cannot be cleared, empty your cursor and run the command again.
 
-If you want to change the commit message convention you can do so by changing the 2 `preset` fields in the [`.releaserc`](.releaserc) file. \
-Possible presets are: [`angular`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-angular), [`atom`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-atom), [`codemirror`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-codemirror), [`ember`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-ember), [`eslint`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-eslint), [`express`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-express), [`jquery`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-jquery), [`jshint`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-jshint), [`conventionalcommits`](https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-changelog-conventionalcommits).
+You can optionally pass a bar opacity:
 
-Additionally you also need to modify the worflow file [`.github/workflows/release.yml`](.github/workflows/release.yml) to use the package that corresponds to your chosen preset. \
-Replace `conventional-changelog-conventionalcommits` with `conventional-changelog-[YOUR PRESET]` accordingly.
+```text
+/sciencemeter-book 75
+/sciencemeter-book 0.75
+/sciencemeter-book 75%
+```
 
-## Need help?
+The default opacity is 75%.
 
-Checkout the [official Factorio Discord](https://discord.gg/factorio) and check the `#mod-dev-guide` channel. \
-There is also the [Lua API documentation](https://lua-api.factorio.com/latest/) and the [modding section in the wiki](https://wiki.factorio.com/Modding).
+## Signal Input
+
+Each generated display panel expects a circuit network signal for its science pack:
+
+- Signal name: the science pack shown by that blueprint
+- Signal value: a percentage from `0` to `100`
+
+For example, the automation science blueprint reads the `automation-science-pack` signal and displays the corresponding percentage.
+
+If you connect a panel directly to a container or a belt with "read (all belts)", circuit logic is needed to scale the value to `0-100` before feeding the signal into the display panel.
+
+## Modpack Compatibility
+
+Science packs are discovered at runtime from the `lab_inputs` of all loaded lab prototypes. Duplicate items are removed, and the book is sorted by Factorio item prototype order so science packs appear in a predictable order.
+
+This should work with many modpacks because generation happens inside the current save. It does not guarantee that every modpack has curated colors or that every unusual lab setup will look ideal.
+
+## Colors
+
+Colors come from Lua preset files in `scripts/templates`. Presets are merged with "first wins" behavior, so the baseline vanilla and Space Age colors are loaded before modpack additions.
+
+If a science pack has no preset color, the mod uses a rainbow fallback color. If only some packs have presets, the generated book label notes that a partial rainbow fallback was used.
+
+You can force rainbow colors with:
+
+```text
+/sciencemeter-book rainbow
+```
+
+## Localization
+
+The mod asks Factorio for localized science pack names before creating the book. In large modpacks this can take a short moment; if translation requests are still pending, the book will be created when they finish.
+
+Fallback command:
+
+```text
+/sciencemeter-reset
+```
+
+This resets pending localization requests for your player.
+
+## After Generation
+
+The mod does not add custom entities or items. The generated blueprints use Factorio Display Panels and item signals, so you can keep using the generated blueprint book without keeping this mod enabled, as long as the target save still has the referenced Display Panel and science pack items.
+
+## Limitations
+
+- The mod creates blueprint books only when you run the command; it does not place panels automatically.
+- Each blueprint contains one Display Panel.
+- The input signal must already be scaled to percent.
+- The Display Panel has 100 message entries. The generated scale covers `0-100`, with `49` skipped so `50` remains available within the limit.
+- Hidden or internal items can still appear if a loaded lab prototype lists them as lab inputs.
+- Curated color presets are incomplete for many modpacks; unknown packs use the fallback.
+
+## Generated Preset Files
+
+Color presets are plain Lua tables keyed by item name. The current loader reads these modules in order:
+
+1. `scripts/templates/vanilla.lua`
+2. `scripts/templates/krastorio2.lua`
+3. `scripts/templates/space_exploration.lua`
+4. `scripts/templates/pyanodons.lua`
+5. `scripts/templates/nullius.lua`
+6. `scripts/templates/ultracube.lua`
+
+When multiple presets define the same item, the first loaded value is kept.
+This might change in the future in order to allow different science colors of vanilla science packs in space exploration.
+
+## Development
+
+Releases are automated with semantic-release and semantic-release-factorio. The changelog and generated release version is written to `info.json` during release.

@@ -1,11 +1,11 @@
 {
-  "name": "[internal-mod-name]",
-  "version": "0.0.0",
-  "title": "[MOD DISPLAY NAME]",
-  "author": "[YOUR MODS.FACTORIO.COM USERNAME]",
-  "homepage": "[HOMEPAGE/REPO URL]",
-  "description": "[SHORT DESCRIPTION]",
-  "factorio_version": "2.1",
+  "name": "display-panel-sciencemeter",
+  "version": "0.0.1",
+  "title": "Display Panel Science Meter",
+  "author": "Maeximus",
+  "homepage": "https://github.com/gisanka/display-panel-sciencemeter",
+  "description": "Creates a science meter blueprint book with a display panel for every science pack in the game, including packs added by other mods.",
+  "factorio_version": "2.0",
   "dependencies": [
     "base"
   ],
