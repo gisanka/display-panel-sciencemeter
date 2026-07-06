@@ -16,8 +16,18 @@ local function debug_print(player, message)
   end
 end
 
+---@alias TranslationRequestId integer
+---@alias PrototypeName string
+
+---@class LocalizationStorage
+---@field pending boolean
+---@field remaining integer
+---@field total integer
+---@field localization_requests table<TranslationRequestId, string> Pending translation request ids mapped to prototype names.
+---@field translated_names table<PrototypeName, string> Prototype names mapped to translated names.
+
 ---create localization structure
----@return table
+---@return LocalizationStorage
 local function create_localization_structure()
   return {
     pending = false,
@@ -25,59 +35,85 @@ local function create_localization_structure()
     total = 0,
     localization_requests = {},
     translated_names = {},
-    generation_options = nil,
   }
 end
 
----to be used for resetting localization
-local function reset_localization()
-  storage.sciencemeter_localization = {}
+---@class GenerationOptions
+---@field alpha number
+---@field width integer
+---@field force_rainbow_fallback boolean
+
+---create localization structure
+---@return GenerationOptions
+local function create_generation_options_structure()
+  return {
+    alpha = 0,
+    width = 0,
+    force_rainbow_fallback = false,
+  }
 end
 
----localization access wrapper
----@param player_index any
----@param create_if_missing any
----@return table|unknown
-local function access_localization(player_index, create_if_missing)
-  if not storage.sciencemeter_localization then
-    if create_if_missing then
-      storage.sciencemeter_localization = {}
-    else
+---------------------------------------------------------------------------------------------------
+---@class PlayerStorage
+---@field localization LocalizationStorage
+---@field generation_options GenerationOptions
+---------------------------------------------------------------------------------------------------
+
+---Accesses the player's private storage slot.
+---@param player_index integer The local index of the player.
+---@param create_if_missing? boolean If true, initializes the structures if they don't exist.
+---@return PlayerStorage|nil player_storage The player's storage table, or nil if not found and create_if_missing is false.
+local function access_storage(player_index, create_if_missing)
+  if not storage[player_index] then
+    if not create_if_missing then
       return nil
     end
+
+    ---@type PlayerStorage
+    storage[player_index] = {
+      localization = create_localization_structure(),
+      generation_options = create_generation_options_structure(),
+    }
   end
 
-  if not storage.sciencemeter_localization[player_index] and create_if_missing then
-    storage.sciencemeter_localization[player_index] = create_localization_structure()
+  ---@type PlayerStorage
+  local player_storage = storage[player_index]
+
+  if create_if_missing then
+    player_storage.localization = player_storage.localization or create_localization_structure()
+    player_storage.generation_options = player_storage.generation_options or create_generation_options_structure()
   end
 
-  return storage.sciencemeter_localization[player_index]
+  return player_storage
+end
+---------------------------------------------------------------------------------------------------
+
+---Resets the storage state.
+---If player_index is provided, resets only that player. Otherwise, resets all players.
+---@param player_index? number
+local function reset_storage(player_index)
+  if player_index then
+    -- CASE 1: Reset a single, specific player
+    local player_storage = access_storage(player_index)
+    if player_storage then
+      -- Wipe the entire structure. The next call with 'create_if_missing = true' will automatically rebuild it
+      player_storage = nil
+      debug_print(game.players[player_index], "Storage wiped - Localization and generation options state reset.")
+    end
+  else
+    -- CASE 2: Reset ALL players (e.g., during configuration change)
+    for index, _ in pairs(storage) do
+      if type(index) == "number" then
+        reset_storage(index) -- Recursively call itself for each player
+      end
+    end
+  end
 end
 
----failsafe command to reset localization state for a player
-local function reset_localization_requests(command)
-  if not command.player_index then
-    return
-  end
-
-  local localization = access_localization(command.player_index)
-  if not localization then
-    return
-  end
-
-  localization.pending = false
-  localization.remaining = 0
-  localization.total = 0
-  localization.localization_requests = {}
-
-  local player = game.get_player(command.player_index)
-  if player then
-    player.print("Display panel sciencemeter localization state reset.")
-  end
-end
+---------------------------------------------------------------------------------------------------
 
 ---adds type item for signals
----@param item_name string
+---@param item_name PrototypeName
 ---@return table
 local function item(item_name)
   return {
@@ -85,6 +121,8 @@ local function item(item_name)
     name = item_name,
   }
 end
+
+---------------------------------------------------------------------------------------------------
 
 ---filters out hidden entities and blueprint parameters
 ---@param prototype any
@@ -99,10 +137,12 @@ local function has_display_panel_prototypes()
   return prototypes.entity["display-panel"] and prototypes.item["display-panel"]
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---only add item_name to result if not already in seen
 ---@param result table
 ---@param seen table
----@param item_name string
+---@param item_name PrototypeName
 local function add_unique(result, seen, item_name)
   if seen[item_name] then
     return
@@ -115,6 +155,8 @@ local function add_unique(result, seen, item_name)
   seen[item_name] = true
   table.insert(result, item_name)
 end
+
+---------------------------------------------------------------------------------------------------
 
 ---Collects all science packs (searches for labs and their inputs)
 ---@return table
@@ -135,8 +177,10 @@ local function collect_science_pack_names()
   return result
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---gets the sort keys out of the prototype data
----@param item_name any
+---@param item_name PrototypeName
 ---@return table
 local function get_item_sort_key(item_name)
   local prototype = prototypes.item[item_name]
@@ -162,6 +206,8 @@ local function get_item_sort_key(item_name)
   }
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---helper function to compare item sort keys
 ---@param a table
 ---@param b table
@@ -186,6 +232,8 @@ local function compare_item_sort_keys(a, b)
   return a.item_name < b.item_name
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---sorts science packs by their prototype sort order
 ---@param science_pack_names table
 ---@return table
@@ -200,21 +248,25 @@ local function sort_science_pack_names(science_pack_names)
   return science_pack_names
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---collects science pack names and sorts them in semantic order
 ---@return table
 local function get_sorted_science_pack_names()
   return sort_science_pack_names(collect_science_pack_names())
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---fills in the actual displayed bar with the percentage
 ---output has fixed width so that on zooming out it will stay aligned
----@param item_name string
----@param percent number
----@param options table
+---@param item_name PrototypeName
+---@param percent integer
+---@param options GenerationOptions
 ---@return string
 local function display_panel_text(item_name, color, percent, options)
   local hexcolor = ColorHelpers.print_item_rich_text_color(color, options)
-  local bar = TextHelpers.make_fill_bar(percent)
+  local bar = TextHelpers.make_fill_bar(percent, options)
   local percent_text = TextHelpers.fixed_width_percent(percent)
 
   return "[font=default]"
@@ -230,9 +282,11 @@ local function display_panel_text(item_name, color, percent, options)
     .. "[/font]"
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---add decision logic for the display panel which line to show
----@param item_name string
----@param options table
+---@param item_name PrototypeName
+---@param options GenerationOptions
 ---@return table
 local function display_panel_parameters(item_name, color, options)
   local parameters = {}
@@ -260,10 +314,12 @@ local function display_panel_parameters(item_name, color, options)
   return parameters
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---adds general data for the display panel entity
----@param item_name string
+---@param item_name PrototypeName
 ---@param color table
----@param options table
+---@param options GenerationOptions
 ---@return table
 local function display_panel_entity(item_name, color, options)
   return {
@@ -283,12 +339,14 @@ local function display_panel_entity(item_name, color, options)
   }
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---adds blueprint for item_name to blueprint_stack, with label and description using translated_name
 ---@param blueprint_stack any
----@param item_name string
+---@param item_name PrototypeName
 ---@param translated_name string
 ---@param color table
----@param options table
+---@param options GenerationOptions
 local function setup_sciencemeter_blueprint(blueprint_stack, item_name, translated_name, color, options)
   -- first set blueprint entity
   blueprint_stack.set_blueprint_entities(display_panel_entity(item_name, color, options))
@@ -305,11 +363,13 @@ local function setup_sciencemeter_blueprint(blueprint_stack, item_name, translat
   }
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---Creates blueprint book and iterates over science packs to fill book
----@param player any
----@param translated_names any
----@param options table
-local function create_sciencemeter_book(player, translated_names, options)
+---@param player LuaPlayer
+---@param translated_names table<PrototypeName, string>
+---@param generation_options GenerationOptions
+local function create_sciencemeter_book(player, translated_names, generation_options)
   if not player or not player.valid then
     return
   end
@@ -330,9 +390,10 @@ local function create_sciencemeter_book(player, translated_names, options)
     return
   end
 
-  local opacity_percent = options.alpha * 100
+  local opacity_percent = generation_options.alpha * 100
+  local options_output_string = "(bar width: " .. generation_options.width .. " | opacity: " .. opacity_percent .. "%)"
 
-  book.label = "Sciencemeter display panels (" .. opacity_percent .. "% opacity)"
+  book.label = "Sciencemeter display panels " .. options_output_string
   book.blueprint_description = "Generated by display panel sciencemeter mod from current science pack prototypes."
 
   -- Build preview icons locally and assign once.
@@ -361,7 +422,7 @@ local function create_sciencemeter_book(player, translated_names, options)
     return
   end
 
-  local created = 0
+  local blueprints_created = 0
   local no_template_available = false
   local templates_found = 0
 
@@ -374,21 +435,21 @@ local function create_sciencemeter_book(player, translated_names, options)
       local blueprint_stack = book_inventory[book_inventory.get_item_count()]
       local translated_name = translated_names[item_name] or item_name
       local color = nil
-      if SciencePackColorPresets[item_name] and not options.use_rainbow_fallback then
+      if SciencePackColorPresets[item_name] and not generation_options.force_rainbow_fallback then
         color = SciencePackColorPresets[item_name]
         templates_found = templates_found + 1
       else
         no_template_available = true
-        color = ColorHelpers.rainbow_color(created + 1, #item_names)
+        color = ColorHelpers.rainbow_color(blueprints_created + 1, #item_names)
       end
 
-      setup_sciencemeter_blueprint(blueprint_stack, item_name, translated_name, color, options)
-      created = created + 1
+      setup_sciencemeter_blueprint(blueprint_stack, item_name, translated_name, color, generation_options)
+      blueprints_created = blueprints_created + 1
     end
   end
 
   player.print(
-    "Created science meter display book with " .. created .. " blueprints and " .. opacity_percent .. "% opacity."
+    "Created science meter display book with " .. blueprints_created .. " blueprints " .. options_output_string
   )
   if no_template_available then
     player.print(
@@ -403,55 +464,56 @@ local function create_sciencemeter_book(player, translated_names, options)
   end
 end
 
----request missing translations for science packs or create blueprint book when all translations are already received
----@param player any
----@param alpha number
----@param use_rainbow_fallback boolean
-local function handle_sciencemeter_translations(player, alpha, use_rainbow_fallback)
+---------------------------------------------------------------------------------------------------
+
+---Request missing translations for science packs or create blueprint book if all translations are already available.
+---@param player LuaPlayer
+---@param generation_options GenerationOptions
+local function handle_sciencemeter_translations(player, generation_options)
   local item_names = get_sorted_science_pack_names()
 
-  local localization = access_localization(player.index, true)
+  local player_storage = assert(
+    access_storage(player.index, true),
+    "Critical error: player_storage is nil despite create_if_missing being true!"
+  )
+  local localization = player_storage.localization
+  player_storage.generation_options = generation_options
 
   if localization.pending then
     player.print("Translation requests are still pending. The blueprint book will be created in your hand shortly.")
     return
   end
 
-  localization.total = 0
+  -- Clear old requests and save current generation options
   localization.localization_requests = {}
-  localization.remaining = 0
-  localization.generation_options = {
-    alpha = alpha,
-    use_rainbow_fallback = use_rainbow_fallback,
-  }
 
   for _, item_name in ipairs(item_names) do
-    localization.total = localization.total + 1
     if localization.translated_names[item_name] == nil then
-      -- request translation for this item
+      -- Request translation using modern Factorio 2.0 prototypes look-up
       local prototype = prototypes.item[item_name]
       local request_id = player.request_translation(prototype.localised_name)
 
       if request_id then
         localization.pending = true
-        localization.remaining = localization.remaining + 1
         localization.localization_requests[request_id] = item_name
       else
+        -- Fallback if Factorio cannot generate a translation ID for some reason
         localization.translated_names[item_name] = item_name
       end
     end
   end
 
-  if localization.remaining == 0 then
+  -- Check if the table is empty. If next() is nil, no translations were requested
+  -- because all items were already cached in 'translated_names'.
+  if next(localization.localization_requests) == nil then
     localization.pending = false
-    -- all translations were already available, create the blueprint book
-    create_sciencemeter_book(player, localization.translated_names, localization.generation_options)
+    create_sciencemeter_book(player, localization.translated_names, player_storage.generation_options)
     return
   end
 end
----------------------------------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------------------------------
+
 ---initiates process - sort-of-main()-function
 local function handle_book_command(command)
   if not command.player_index then
@@ -459,7 +521,7 @@ local function handle_book_command(command)
     return
   end
 
-  local player = game.get_player(command.player_index)
+  local player = game.players[command.player_index]
   if not player or not player.valid then
     return
   end
@@ -469,80 +531,114 @@ local function handle_book_command(command)
     return
   end
 
-  local alpha = TextHelpers.parse_alpha_parameter(command.parameter, DEFAULT_ALPHA)
+  local generation_options = TextHelpers.parse_numerical_parameter(command.parameter)
+  local defaults_used = {}
 
-  if alpha == -1 then
-    player.print(
-      "Invalid alpha value. Use for example /sciencemeter-book or /sciencemeter-book 75 or /sciencemeter-book 0.75."
-    )
-    return
+  -- If width was not provided or was invalid, fallback to default
+  if not generation_options.width then
+    generation_options.width = DEFAULT_WIDTH
+    table.insert(defaults_used, "width = " .. generation_options.width)
   end
 
-  local use_rainbow_fallback = command.parameter and string.find(command.parameter, "rainbow") ~= nil
+  -- If alpha was not provided or was invalid, fallback to default
+  if not generation_options.alpha then
+    generation_options.alpha = DEFAULT_ALPHA
+    table.insert(defaults_used, "alpha = " .. generation_options.alpha)
+  end
 
-  handle_sciencemeter_translations(player, alpha, use_rainbow_fallback)
+  -- Print the message to the player if any defaults were applied
+  if #defaults_used > 0 then
+    local default_fallbacks = table.concat(defaults_used, " | ")
+    player.print("Using default values: " .. default_fallbacks)
+  end
+
+  -- Rainbow fallback flag (safe against nil command.parameter)
+  generation_options.force_rainbow_fallback = command.parameter and command.parameter:find("rainbow") ~= nil
+
+  handle_sciencemeter_translations(player, generation_options)
 end
 
--- stylua: ignore
+---------------------------------------------------------------------------------------------------
+
 -- add console command for main functionality
 commands.add_command(
   "sciencemeter-book",
   "Create a blueprint book. Optionally specify alpha value for the bar color, e.g. 75 or 0.75.",
-  handle_book_command)
+  handle_book_command
+)
 
--- stylua: ignore
--- add failsafe console command to reset localization handling
-commands.add_command(
-  "sciencemeter-reset",
-  "Reset pending localization requests.",
-  reset_localization_requests)
+---------------------------------------------------------------------------------------------------
 
----store localized names in volatile memory
+---Store localized names in player storage
 ---@param event EventData.on_string_translated
 script.on_event(defines.events.on_string_translated, function(event)
-  local localization = access_localization(event.player_index)
-
-  if not localization then
+  local player_storage = access_storage(event.player_index)
+  if not player_storage or not player_storage.localization then
     return
   end
 
-  -- remember the translated name for the science packs
+  local localization = player_storage.localization
+
+  -- Remember the translated name for the science packs
   local item_name = localization.localization_requests[event.id]
   if not item_name then
+    -- Request ID is unknown (could be from an old session or already reset). Ignore safely!
     return
   end
 
-  -- store localized name or fallback to untranslated name if translation failed
+  -- Store localized name or fallback to untranslated name if translation failed
   if event.translated then
     localization.translated_names[item_name] = event.result
   else
     localization.translated_names[item_name] = item_name
   end
 
-  -- remove the request from the pending list and decrement remaining count
+  -- Remove the specific request from the active list
   localization.localization_requests[event.id] = nil
-  localization.remaining = localization.remaining - 1
 
-  if localization.remaining > 0 then
+  -- Check if there are any remaining active requests in the table
+  -- next() returns nil if the table is completely empty!
+  if next(localization.localization_requests) ~= nil then
     return
   end
 
-  -- all translations have been received, create the blueprint book
+  -- ALL translations have been successfully received!
   localization.pending = false
   localization.localization_requests = {}
-  localization.remaining = 0
 
-  local player = game.get_player(event.player_index)
-  create_sciencemeter_book(player, localization.translated_names, localization.generation_options)
+  local player = game.players[event.player_index]
+  if player then
+    create_sciencemeter_book(player, localization.translated_names, player_storage.generation_options)
+  end
 end)
 
----Throw away translated name when locale changed
+---------------------------------------------------------------------------------------------------
+
+---Failsafe: Reset localization state when player joins to prevent getting stuck
+---@param event EventData.on_player_joined_game
+script.on_event(defines.events.on_player_joined_game, function(event)
+  debug_print(game.players[event.player_index], script.mod_name .. " in dev mode - debug_print enabled")
+  local player_storage = access_storage(event.player_index)
+  if player_storage and player_storage.localization then
+    local localization = player_storage.localization
+
+    -- Clear everything so old, delayed translation events will be ignored safely
+    localization.pending = false
+    localization.localization_requests = {}
+  end
+end)
+
+---------------------------------------------------------------------------------------------------
+
+---Throw away translated names when locale changed
 ---@param event EventData.on_player_locale_changed
 script.on_event(defines.events.on_player_locale_changed, function(event)
-  reset_localization()
+  -- Pass the specific player_index from the event
+  reset_storage(event.player_index)
 end)
 
 ---Throw away translated names when a mod was updated or removed
 script.on_configuration_changed(function(event)
-  reset_localization()
+  -- Call without arguments to reset everyone globally
+  reset_storage()
 end)
