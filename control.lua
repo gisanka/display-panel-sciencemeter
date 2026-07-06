@@ -3,6 +3,18 @@ local ColorHelpers = require("scripts.color_helpers")
 local SciencePackColorPresets = require("scripts.science_pack_color_presets")
 
 local DEFAULT_ALPHA = 0.75
+local DEFAULT_WIDTH = 20
+
+-- automatic debug detection:
+-- if file dev_marker.lua exists, dev-shortcut will be created
+-- VERBOSE will automatically be if debug adapter is connected or setting is set to true
+local VERBOSE = (__DebugAdapter ~= nil) or (prototypes.custom_input["display-panel-sciencemeter-dev-marker"] ~= nil)
+
+local function debug_print(player, message)
+  if VERBOSE and player then
+    player.print(message)
+  end
+end
 
 ---create localization structure
 ---@return table
