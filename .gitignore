@@ -3,3 +3,4 @@
 !.vscode/settings.json
 
 *.code-workspace
+dev_marker.lua

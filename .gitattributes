@@ -30,3 +30,7 @@
 # include folders, exclude folders starting with .
 */ export-ignore=false
 .*/ export-ignore
+
+# make sure development/test scripts are not going into the release
+dev_marker.lua export-ignore
+test_text_helpers.lua export-ignore
