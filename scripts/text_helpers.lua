@@ -32,7 +32,7 @@ end
 ---@return table
 function TextHelpers.parse_numerical_parameter(parameter)
   if not parameter or parameter == "" then
-    return { alpha = -1, width = -1 }
+    return { alpha = nil, width = nil }
   end
 
   -- Pure patterns without anchors

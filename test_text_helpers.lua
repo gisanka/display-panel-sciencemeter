@@ -19,6 +19,7 @@ end
 
 -- stylua: ignore
 local parameter_test_cases = {
+  { input = "",            w = nil,  a = nil },
   -- Positional Single Tests
   { input = "40",          w = 40,  a = nil },
   { input = "1",           w = 1,   a = nil },

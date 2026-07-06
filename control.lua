@@ -3,7 +3,7 @@ local ColorHelpers = require("scripts.color_helpers")
 local SciencePackColorPresets = require("scripts.science_pack_color_presets")
 
 local DEFAULT_ALPHA = 0.75
-local DEFAULT_WIDTH = 20
+local DEFAULT_WIDTH = 5
 
 -- automatic debug detection:
 -- if file dev_marker.lua exists, dev-shortcut will be created
@@ -563,7 +563,7 @@ end
 -- add console command for main functionality
 commands.add_command(
   "sciencemeter-book",
-  "Create a blueprint book. Optionally specify alpha value for the bar color, e.g. 75 or 0.75.",
+  "Create a blueprint book. Optionally specify bar width and opacity with 'width=10 opacity=0.75",
   handle_book_command
 )
 
