@@ -151,6 +151,8 @@ elseif #arg >= 1 and arg[1] == "args" then
   print(string.rep("-", max_len + 45))
 
   local total_passed = 0
+  local status_fail = "FAIL ❌"
+  local status_pass = "PASS ✅"
 
   for _, case in ipairs(parameter_test_cases) do
     local result = TextHelpers.parse_numerical_parameter(case.input)
@@ -159,9 +161,9 @@ elseif #arg >= 1 and arg[1] == "args" then
     local width_pass = (result.width == case.w)
     local alpha_pass = (result.alpha == case.a)
 
-    local status = "FAIL ❌"
+    local status = status_fail
     if width_pass and alpha_pass then
-      status = "PASS ✅"
+      status = status_pass
       total_passed = total_passed + 1
     end
 
@@ -172,6 +174,10 @@ elseif #arg >= 1 and arg[1] == "args" then
     print(string.format("%-" .. max_len .. "s | %-12s | %-12s | %s", case.input, w_str, a_str, status))
   end
 
+  local overall_status = status_fail
+  if total_passed == #parameter_test_cases then
+    overall_status = status_pass
+  end
   print(string.rep("-", max_len + 45))
-  print(string.format("Result: %d/%d Tests Passed.", total_passed, #parameter_test_cases))
+  print(string.format("Result: %d/%d Tests Passed. %s", total_passed, #parameter_test_cases, overall_status))
 end

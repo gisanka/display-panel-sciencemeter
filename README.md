@@ -20,19 +20,20 @@ Run one command and the mod generates a blueprint book containing one blueprint 
 Open the console and run:
 
 ```text
-/sciencemeter-book [opacity] [rainbow]
+/sciencemeter-book [[width=]width] [[opacity=]opacity] [rainbow]
 ```
 
 The generated blueprint book is placed in your cursor. If your cursor cannot be cleared, empty your cursor and run the command again.
 
-You can optionally pass a bar opacity:
+You can optionally pass a bar width and opacity:
 
 ```text
-/sciencemeter-book 75
-/sciencemeter-book 0.75
-/sciencemeter-book 75%
+/sciencemeter-book 5 75
+/sciencemeter-book 5 0.75
+/sciencemeter-book 5 75%
 ```
 
+The default width is 5.
 The default opacity is 75%.
 
 ## Signal Input
@@ -67,14 +68,6 @@ You can force rainbow colors with:
 ## Localization
 
 The mod asks Factorio for localized science pack names before creating the book. In large modpacks this can take a short moment; if translation requests are still pending, the book will be created when they finish.
-
-Fallback command:
-
-```text
-/sciencemeter-reset
-```
-
-This resets pending localization requests for your player.
 
 ## After Generation
 

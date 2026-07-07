@@ -1,5 +1,7 @@
 local ColorHelpers = {}
 
+---------------------------------------------------------------------------------------------------
+
 ---Converts HSV to RGB coordinates
 ---@param h number
 ---@param s number
@@ -33,6 +35,8 @@ local function hsv_to_rgb(h, s, v)
   }
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---Will divide HSV spectrum into $count indexable segments
 ---@param index number
 ---@param count number
@@ -46,6 +50,8 @@ function ColorHelpers.rainbow_color(index, count)
   return hsv_to_rgb(hue, 0.85, 0.95)
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---returns true if rgb is using 0 - 255 scale
 ---@param color any
 ---@return boolean
@@ -57,8 +63,10 @@ local function color_uses_255_scale(color)
   return r > 1 or g > 1 or b > 1
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---helper function to convert color channel to 0-255 scale if needed
----@param value any
+---@param value number
 ---@param uses_255_scale boolean
 ---@param alpha? number
 ---@return integer
@@ -78,18 +86,22 @@ local function color_channel_to_255(value, uses_255_scale, alpha)
   return math.floor(value * 255 * alpha + 0.5)
 end
 
+---------------------------------------------------------------------------------------------------
+
 ---takes a number and returns a two-digit hex string, rounding to the nearest integer
----@param value number
+---@param value integer
 ---@return string
 local function byte_to_hex(value)
   return string.format("%02X", math.floor(value))
 end
 
----converts color to a,r,g,b string
+---------------------------------------------------------------------------------------------------
+
+---converts color to #AARRGGBB string
 ---@param color table
----@param options table
+---@param options GenerationOptions
 ---@return string
-function ColorHelpers.print_item_rich_text_color(color, options)
+function ColorHelpers.rich_text_color_string(color, options)
   local alpha = options and options.alpha
 
   if not color then
@@ -106,5 +118,7 @@ function ColorHelpers.print_item_rich_text_color(color, options)
 
   return "#" .. byte_to_hex(a) .. byte_to_hex(r) .. byte_to_hex(g) .. byte_to_hex(b)
 end
+
+---------------------------------------------------------------------------------------------------
 
 return ColorHelpers
