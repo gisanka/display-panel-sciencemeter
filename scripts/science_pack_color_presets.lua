@@ -19,9 +19,9 @@ local function merge_preset_module(module_name)
     return
   end
 
-  for item_name, color in pairs(module_presets) do
-    if presets[item_name] == nil then
-      presets[item_name] = color
+  for prototype_name, color in pairs(module_presets) do
+    if presets[prototype_name] == nil then
+      presets[prototype_name] = color
     end
   end
 end

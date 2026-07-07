@@ -112,13 +112,51 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----adds type item for signals
----@param item_name PrototypeName
----@return table
-local function item(item_name)
+---Finds the category of a prototype name (e.g., "item", "fluid", "recipe")
+---@param name PrototypeName The internal prototype name to check
+---@return string|nil category The type category or nil if not found
+local function determine_prototype_category(name)
+  -- 1. Check if it is an item
+  if prototypes.item[name] then
+    return "item"
+  end
+
+  -- 2. Check if it is a fluid
+  if prototypes.fluid[name] then
+    return "fluid"
+  end
+
+  -- 3. Check if it is a virtual signal (A-Z, colors, numbers, wildcards)
+  if prototypes.virtual_signal[name] then
+    return "virtual"
+  end
+
+  -- 4. Check if it is a recipe
+  if prototypes.recipe[name] then
+    return "recipe"
+  end
+
+  -- 5. Check if it is a technology
+  if prototypes.technology[name] then
+    return "technology"
+  end
+
+  return nil -- Not found anywhere
+end
+
+---------------------------------------------------------------------------------------------------
+
+---adds type for signals
+---@param prototype_name PrototypeName
+---@return table|nil
+local function signal(prototype_name)
+  type = determine_prototype_category(prototype_name)
+  if not type then
+    return nil
+  end
   return {
-    type = "item",
-    name = item_name,
+    type = type,
+    name = prototype_name,
   }
 end
 
@@ -139,21 +177,21 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----only add item_name to result if not already in seen
+---only add prototype_name to result if not already in seen
 ---@param result table
 ---@param seen table
----@param item_name PrototypeName
-local function add_unique(result, seen, item_name)
-  if seen[item_name] then
+---@param prototype_name PrototypeName
+local function add_unique(result, seen, prototype_name)
+  if seen[prototype_name] then
     return
   end
 
-  if not prototypes.item[item_name] then
+  if not determine_prototype_category(prototype_name) then
     return
   end
 
-  seen[item_name] = true
-  table.insert(result, item_name)
+  seen[prototype_name] = true
+  table.insert(result, prototype_name)
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -166,9 +204,9 @@ local function collect_science_pack_names()
 
   for _, entity in pairs(prototypes.entity) do
     if entity.type == "lab" and entity.lab_inputs and #entity.lab_inputs > 0 then
-      for _, item_name in ipairs(entity.lab_inputs) do
-        if is_real(prototypes.item[item_name]) then
-          add_unique(result, seen, item_name)
+      for _, science_pack in ipairs(entity.lab_inputs) do
+        if is_real(prototypes.item[science_pack]) then
+          add_unique(result, seen, science_pack)
         end
       end
     end
@@ -180,10 +218,10 @@ end
 ---------------------------------------------------------------------------------------------------
 
 ---gets the sort keys out of the prototype data
----@param item_name PrototypeName
+---@param prototype_name PrototypeName
 ---@return table
-local function get_item_sort_key(item_name)
-  local prototype = prototypes.item[item_name]
+local function get_item_sort_key(prototype_name)
+  local prototype = prototypes.item[prototype_name]
 
   if not prototype then
     return {
@@ -192,7 +230,7 @@ local function get_item_sort_key(item_name)
       subgroup_order = "zzzz",
       subgroup_name = "zzzz",
       item_order = "zzzz",
-      item_name = item_name,
+      prototype_name = prototype_name,
     }
   end
 
@@ -202,7 +240,7 @@ local function get_item_sort_key(item_name)
     subgroup_order = prototype.subgroup and prototype.subgroup.order or "",
     subgroup_name = prototype.subgroup and prototype.subgroup.name or "",
     item_order = prototype.order or "",
-    item_name = prototype.name,
+    prototype_name = prototype.name,
   }
 end
 
@@ -229,7 +267,7 @@ local function compare_item_sort_keys(a, b)
     return a.item_order < b.item_order
   end
 
-  return a.item_name < b.item_name
+  return a.prototype_name < b.prototype_name
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -260,21 +298,24 @@ end
 
 ---fills in the actual displayed bar with the percentage
 ---output has fixed width so that on zooming out it will stay aligned
----@param item_name PrototypeName
+---@param prototype_name PrototypeName
 ---@param percent integer
 ---@param options GenerationOptions
 ---@return string
-local function display_panel_text(item_name, color, percent, options)
-  local hexcolor = ColorHelpers.print_item_rich_text_color(color, options)
+local function display_panel_text(prototype_name, color, percent, options)
+  local hexcolor = ColorHelpers.rich_text_color_string(color, options)
   local bar = TextHelpers.make_fill_bar(percent, options)
   local percent_text = TextHelpers.fixed_width_percent(percent)
+  local type = determine_prototype_category(prototype_name)
 
   return "[font=default]"
     .. "[color="
     .. hexcolor
     .. "]"
-    .. "[item="
-    .. item_name
+    .. "["
+    .. type
+    .. "="
+    .. prototype_name
     .. "] "
     .. bar
     .. " [/color] "
@@ -285,10 +326,10 @@ end
 ---------------------------------------------------------------------------------------------------
 
 ---add decision logic for the display panel which line to show
----@param item_name PrototypeName
+---@param prototype_name PrototypeName
 ---@param options GenerationOptions
 ---@return table
-local function display_panel_parameters(item_name, color, options)
+local function display_panel_parameters(prototype_name, color, options)
   local parameters = {}
 
   for percent = 0, 100 do
@@ -300,10 +341,10 @@ local function display_panel_parameters(item_name, color, options)
       end
 
       table.insert(parameters, {
-        icon = item(item_name),
-        text = display_panel_text(item_name, color, percent, options),
+        icon = signal(prototype_name),
+        text = display_panel_text(prototype_name, color, percent, options),
         condition = {
-          first_signal = item(item_name),
+          first_signal = signal(prototype_name),
           comparator = comparator,
           constant = percent,
         },
@@ -317,11 +358,11 @@ end
 ---------------------------------------------------------------------------------------------------
 
 ---adds general data for the display panel entity
----@param item_name PrototypeName
+---@param prototype_name PrototypeName
 ---@param color table
 ---@param options GenerationOptions
 ---@return table
-local function display_panel_entity(item_name, color, options)
+local function display_panel_entity(prototype_name, color, options)
   return {
     {
       entity_number = 1,
@@ -332,7 +373,7 @@ local function display_panel_entity(item_name, color, options)
       },
       direction = 8,
       control_behavior = {
-        parameters = display_panel_parameters(item_name, color, options),
+        parameters = display_panel_parameters(prototype_name, color, options),
       },
       always_show = true,
     },
@@ -341,15 +382,15 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----adds blueprint for item_name to blueprint_stack, with label and description using translated_name
+---adds blueprint for prototype_name to blueprint_stack, with label and description using translated_name
 ---@param blueprint_stack any
----@param item_name PrototypeName
+---@param prototype_name PrototypeName
 ---@param translated_name string
 ---@param color table
 ---@param options GenerationOptions
-local function setup_sciencemeter_blueprint(blueprint_stack, item_name, translated_name, color, options)
+local function setup_sciencemeter_blueprint(blueprint_stack, prototype_name, translated_name, color, options)
   -- first set blueprint entity
-  blueprint_stack.set_blueprint_entities(display_panel_entity(item_name, color, options))
+  blueprint_stack.set_blueprint_entities(display_panel_entity(prototype_name, color, options))
 
   -- After entity is set, label and description can be filled
   blueprint_stack.label = translated_name
@@ -358,7 +399,7 @@ local function setup_sciencemeter_blueprint(blueprint_stack, item_name, translat
   blueprint_stack.preview_icons = {
     {
       index = 1,
-      signal = item(item_name),
+      signal = signal(prototype_name),
     },
   }
 end
@@ -401,15 +442,15 @@ local function create_sciencemeter_book(player, translated_names, generation_opt
   local preview_icons = {
     {
       index = 1,
-      signal = item("display-panel"),
+      signal = signal("display-panel"),
     },
   }
 
-  local item_names = get_sorted_science_pack_names()
-  for i = 1, math.min(3, #item_names) do
+  local prototype_names = get_sorted_science_pack_names()
+  for i = 1, math.min(3, #prototype_names) do
     preview_icons[#preview_icons + 1] = {
       index = i + 1,
-      signal = item(item_names[i]),
+      signal = signal(prototype_names[i]),
     }
   end
 
@@ -426,24 +467,24 @@ local function create_sciencemeter_book(player, translated_names, generation_opt
   local no_template_available = false
   local templates_found = 0
 
-  for _, item_name in ipairs(item_names) do
+  for _, prototype_name in ipairs(prototype_names) do
     local inserted = book_inventory.insert({ name = "blueprint", count = 1 })
     if inserted == 0 then
-      player.print("Could not insert blueprint for " .. item_name)
+      player.print("Could not insert blueprint for " .. prototype_name)
     else
       -- Blueprints are not stackable, so the current item count points to the newly inserted blueprint
       local blueprint_stack = book_inventory[book_inventory.get_item_count()]
-      local translated_name = translated_names[item_name] or item_name
+      local translated_name = translated_names[prototype_name] or prototype_name
       local color = nil
-      if SciencePackColorPresets[item_name] and not generation_options.force_rainbow_fallback then
-        color = SciencePackColorPresets[item_name]
+      if SciencePackColorPresets[prototype_name] and not generation_options.force_rainbow_fallback then
+        color = SciencePackColorPresets[prototype_name]
         templates_found = templates_found + 1
       else
         no_template_available = true
-        color = ColorHelpers.rainbow_color(blueprints_created + 1, #item_names)
+        color = ColorHelpers.rainbow_color(blueprints_created + 1, #prototype_names)
       end
 
-      setup_sciencemeter_blueprint(blueprint_stack, item_name, translated_name, color, generation_options)
+      setup_sciencemeter_blueprint(blueprint_stack, prototype_name, translated_name, color, generation_options)
       blueprints_created = blueprints_created + 1
     end
   end
@@ -470,7 +511,7 @@ end
 ---@param player LuaPlayer
 ---@param generation_options GenerationOptions
 local function handle_sciencemeter_translations(player, generation_options)
-  local item_names = get_sorted_science_pack_names()
+  local prototype_names = get_sorted_science_pack_names()
 
   local player_storage = assert(
     access_storage(player.index, true),
@@ -487,24 +528,29 @@ local function handle_sciencemeter_translations(player, generation_options)
   -- Clear old requests and save current generation options
   localization.localization_requests = {}
 
-  for _, item_name in ipairs(item_names) do
-    if localization.translated_names[item_name] == nil then
-      -- Request translation using modern Factorio 2.0 prototypes look-up
-      local prototype = prototypes.item[item_name]
+  for _, prototype_name in ipairs(prototype_names) do
+    if localization.translated_names[prototype_name] == nil then
+      -- Request translation using prototypes look-up
+      local prototype = prototypes.item[prototype_name]
+        or prototypes.fluid[prototype_name]
+        or prototypes.virtual_signal[prototype_name]
+      if not prototype then
+        localization.translated_names[prototype_name] = prototype_name
+      end
       local request_id = player.request_translation(prototype.localised_name)
 
       if request_id then
         localization.pending = true
-        localization.localization_requests[request_id] = item_name
+        localization.localization_requests[request_id] = prototype_name
       else
         -- Fallback if Factorio cannot generate a translation ID for some reason
-        localization.translated_names[item_name] = item_name
+        localization.translated_names[prototype_name] = prototype_name
       end
     end
   end
 
   -- Check if the table is empty. If next() is nil, no translations were requested
-  -- because all items were already cached in 'translated_names'.
+  -- because all prototypes were already cached in 'translated_names'.
   if next(localization.localization_requests) == nil then
     localization.pending = false
     create_sciencemeter_book(player, localization.translated_names, player_storage.generation_options)
@@ -538,6 +584,11 @@ local function handle_book_command(command)
   if not generation_options.width then
     generation_options.width = DEFAULT_WIDTH
     table.insert(defaults_used, "width = " .. generation_options.width)
+  end
+
+  if generation_options.width > 24 then
+    generation_options.width = 24
+    player.print("Factorio only supports bars up to width 24")
   end
 
   -- If alpha was not provided or was invalid, fallback to default
@@ -580,17 +631,17 @@ script.on_event(defines.events.on_string_translated, function(event)
   local localization = player_storage.localization
 
   -- Remember the translated name for the science packs
-  local item_name = localization.localization_requests[event.id]
-  if not item_name then
+  local prototype_name = localization.localization_requests[event.id]
+  if not prototype_name then
     -- Request ID is unknown (could be from an old session or already reset). Ignore safely!
     return
   end
 
   -- Store localized name or fallback to untranslated name if translation failed
   if event.translated then
-    localization.translated_names[item_name] = event.result
+    localization.translated_names[prototype_name] = event.result
   else
-    localization.translated_names[item_name] = item_name
+    localization.translated_names[prototype_name] = prototype_name
   end
 
   -- Remove the specific request from the active list
@@ -626,6 +677,13 @@ script.on_event(defines.events.on_player_joined_game, function(event)
     localization.pending = false
     localization.localization_requests = {}
   end
+end)
+
+---------------------------------------------------------------------------------------------------
+
+---@param event EventData.on_singleplayer_init
+script.on_event(defines.events.on_singleplayer_init, function(event)
+  debug_print(game.players[1], script.mod_name .. " in dev mode - debug_print enabled")
 end)
 
 ---------------------------------------------------------------------------------------------------
