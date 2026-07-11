@@ -24,72 +24,6 @@ end
 ---@field width integer
 ---@field force_rainbow_fallback boolean
 
----create localization structure
----@return GenerationOptions
-local function create_generation_options_structure()
-  return {
-    alpha = 0,
-    width = 0,
-    force_rainbow_fallback = false,
-  }
-end
-
----------------------------------------------------------------------------------------------------
----@class PlayerStorage
----@field generation_options GenerationOptions
----------------------------------------------------------------------------------------------------
-
----Accesses the player's private storage slot.
----@param player_index integer The local index of the player.
----@param create_if_missing? boolean If true, initializes the structures if they don't exist.
----@return PlayerStorage|nil player_storage The player's storage table, or nil if not found and create_if_missing is false.
-local function access_storage(player_index, create_if_missing)
-  if not storage[player_index] then
-    if not create_if_missing then
-      return nil
-    end
-
-    ---@type PlayerStorage
-    storage[player_index] = {
-      generation_options = create_generation_options_structure(),
-    }
-  end
-
-  ---@type PlayerStorage
-  local player_storage = storage[player_index]
-
-  if create_if_missing then
-    player_storage.generation_options = player_storage.generation_options or create_generation_options_structure()
-  end
-
-  return player_storage
-end
----------------------------------------------------------------------------------------------------
-
----Resets the storage state.
----If player_index is provided, resets only that player. Otherwise, resets all players.
----@param player_index? number
-local function reset_storage(player_index)
-  if player_index then
-    -- CASE 1: Reset a single, specific player
-    local player_storage = access_storage(player_index)
-    if player_storage then
-      -- Wipe the entire structure. The next call with 'create_if_missing = true' will automatically rebuild it
-      player_storage = nil
-      debug_print(game.players[player_index], "Storage wiped - Localization and generation options state reset.")
-    end
-  else
-    -- CASE 2: Reset ALL players (e.g., during configuration change)
-    for index, _ in pairs(storage) do
-      if type(index) == "number" then
-        reset_storage(index) -- Recursively call itself for each player
-      end
-    end
-  end
-end
-
----------------------------------------------------------------------------------------------------
-
 ---Finds the category of a prototype name (e.g., "item", "fluid", "recipe")
 ---@param name PrototypeName The internal prototype name to check
 ---@return string|nil category The type category or nil if not found
@@ -479,22 +413,6 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----Request missing translations for science packs or create blueprint book if all translations are already available.
----@param player LuaPlayer
----@param generation_options GenerationOptions
-local function handle_sciencemeter_translations(player, generation_options)
-  local player_storage = assert(
-    access_storage(player.index, true),
-    "Critical error: player_storage is nil despite create_if_missing being true!"
-  )
-
-  player_storage.generation_options = generation_options
-
-  create_sciencemeter_book(player, player_storage.generation_options)
-end
-
----------------------------------------------------------------------------------------------------
-
 ---initiates process - sort-of-main()-function
 local function handle_book_command(command)
   if not command.player_index then
@@ -541,7 +459,7 @@ local function handle_book_command(command)
   -- Rainbow fallback flag (safe against nil command.parameter)
   generation_options.force_rainbow_fallback = command.parameter and command.parameter:find("rainbow") ~= nil
 
-  handle_sciencemeter_translations(player, generation_options)
+  create_sciencemeter_book(player, generation_options)
 end
 
 ---------------------------------------------------------------------------------------------------
