@@ -211,18 +211,16 @@ local function create_sciencemeter_book(player, generation_options)
 
   -- 2. STAGE: Gather our specific science packs and queue them into the book
   local prototype_names = get_sorted_science_pack_names()
-  local blueprints_created = 0
-  local templates_found = 0
-  local preset_missed_once = false
 
   for i, prototype_name in ipairs(prototype_names) do
     blueprints_created = i
     local options = {
+      prototype = signal(prototype_name),
       bar_width = generation_options.width,
       alpha = generation_options.alpha,
       icon = signal(prototype_name),
     }
-    local panel_config = DisplayPanelApi.new_meter(prototype_name, options)
+    local panel_config = DisplayPanelApi.new_meter(options)
 
     -- Add this specific page to the player's active session queue
     remote.call("display_panel_book", "add", player.index, panel_config)
