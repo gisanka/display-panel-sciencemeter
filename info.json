@@ -7,7 +7,8 @@
   "description": "Creates a science meter blueprint book with a display panel for every science pack in the game, including packs added by other mods.",
   "factorio_version": "2.1",
   "dependencies": [
-    "base"
+    "base",
+    "display-panel"
   ],
   "expansion_required": false,
   "quality_required": false,

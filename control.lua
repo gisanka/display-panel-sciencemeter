@@ -1,21 +1,8 @@
 local TextHelpers = require("scripts.text_helpers")
-local ColorHelpers = require("scripts.color_helpers")
-local SciencePackColorPresets = require("scripts.science_pack_color_presets")
 local DisplayPanelApi = require("__display-panel__.public_api")
 
 local DEFAULT_ALPHA = 0.75
-local DEFAULT_WIDTH = 5
-
--- automatic debug detection:
--- if file dev_marker.lua exists, dev-shortcut will be created
--- VERBOSE will automatically be if debug adapter is connected or setting is set to true
-local VERBOSE = (__DebugAdapter ~= nil) or (prototypes.custom_input["display-panel-sciencemeter-dev-marker"] ~= nil)
-
-local function debug_print(player, message)
-  if VERBOSE and player then
-    player.print(message)
-  end
-end
+local DEFAULT_WIDTH = 7
 
 ---@alias PrototypeName string
 
@@ -62,12 +49,12 @@ end
 ---@param prototype_name PrototypeName
 ---@return table|nil
 local function signal(prototype_name)
-  type = determine_prototype_category(prototype_name)
-  if not type then
+  local signal_type = determine_prototype_category(prototype_name)
+  if not signal_type then
     return nil
   end
   return {
-    type = type,
+    type = signal_type,
     name = prototype_name,
   }
 end
@@ -208,116 +195,6 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----fills in the actual displayed bar with the percentage
----output has fixed width so that on zooming out it will stay aligned
----@param prototype_name PrototypeName
----@param percent integer
----@param options GenerationOptions
----@return string
-local function display_panel_text(prototype_name, color, percent, options)
-  local hexcolor = ColorHelpers.rich_text_color_string(color, options)
-  local bar = TextHelpers.make_fill_bar(percent, options)
-  local percent_text = TextHelpers.fixed_width_percent(percent)
-  local type = determine_prototype_category(prototype_name)
-
-  return "[font=default]"
-    .. "[color="
-    .. hexcolor
-    .. "]"
-    .. "["
-    .. type
-    .. "="
-    .. prototype_name
-    .. "] "
-    .. bar
-    .. " [/color] "
-    .. percent_text
-    .. "[/font]"
-end
-
----------------------------------------------------------------------------------------------------
-
----add decision logic for the display panel which line to show
----@param prototype_name PrototypeName
----@param options GenerationOptions
----@return table
-local function display_panel_parameters(prototype_name, color, options)
-  local parameters = {}
-
-  for percent = 0, 100 do
-    local comparator = "≤"
-    -- skipping 49 as it is negligible (and we only have 100 entries available)
-    if percent ~= 49 then
-      if percent == 100 then
-        comparator = "≥"
-      end
-
-      table.insert(parameters, {
-        icon = signal(prototype_name),
-        text = display_panel_text(prototype_name, color, percent, options),
-        condition = {
-          first_signal = signal(prototype_name),
-          comparator = comparator,
-          constant = percent,
-        },
-      })
-    end
-  end
-
-  return parameters
-end
-
----------------------------------------------------------------------------------------------------
-
----adds general data for the display panel entity
----@param prototype_name PrototypeName
----@param color table
----@param options GenerationOptions
----@return table
-local function display_panel_entity(prototype_name, color, options)
-  return {
-    {
-      entity_number = 1,
-      name = "display-panel",
-      position = {
-        x = 0,
-        y = 0,
-      },
-      direction = 8,
-      control_behavior = {
-        parameters = display_panel_parameters(prototype_name, color, options),
-      },
-      always_show = true,
-    },
-  }
-end
-
----------------------------------------------------------------------------------------------------
-
----adds blueprint for prototype_name to blueprint_stack, with label and description using translated_name
----@param blueprint_stack any
----@param prototype_name PrototypeName
----@param translated_name string
----@param color table
----@param options GenerationOptions
-local function setup_sciencemeter_blueprint(blueprint_stack, prototype_name, translated_name, color, options)
-  -- first set blueprint entity
-  blueprint_stack.set_blueprint_entities(display_panel_entity(prototype_name, color, options))
-
-  -- After entity is set, label and description can be filled
-  blueprint_stack.label = translated_name
-  blueprint_stack.blueprint_description = "Sciencemeter for " .. translated_name
-
-  blueprint_stack.preview_icons = {
-    {
-      index = 1,
-      signal = signal(prototype_name),
-    },
-  }
-end
-
----------------------------------------------------------------------------------------------------
-
 ---Creates blueprint book and iterates over science packs to fill book
 ---@param player LuaPlayer
 ---@param generation_options GenerationOptions
@@ -340,24 +217,15 @@ local function create_sciencemeter_book(player, generation_options)
 
   for i, prototype_name in ipairs(prototype_names) do
     blueprints_created = i
-    local color = nil
-    local preset_color = SciencePackColorPresets.get(prototype_name)
-    if preset_color and not generation_options.force_rainbow_fallback then
-      color = preset_color
-      templates_found = templates_found + 1
-    else
-      preset_missed_once = true
-      color = ColorHelpers.rainbow_color(i, #prototype_name)
-    end
     local options = {
       bar_width = generation_options.width,
-      color = { r = color.r, g = color.g, b = color.b, a = generation_options.alpha },
+      alpha = generation_options.alpha,
+      icon = signal(prototype_name),
     }
     local panel_config = DisplayPanelApi.new_meter(prototype_name, options)
 
     -- Add this specific page to the player's active session queue
     remote.call("display_panel_book", "add", player.index, panel_config)
-    --setup_sciencemeter_blueprint(blueprint_stack, prototype_name, translated_name, color, generation_options)
   end
 
   local book_preview_icons = {
@@ -378,13 +246,6 @@ local function create_sciencemeter_book(player, generation_options)
 
   local book_label = "Sciencemeter display panels " .. options_output_string
   local book_description = "Generated by display panel sciencemeter mod from current science pack prototypes."
-  if preset_missed_once then
-    if templates_found > 0 then
-      book_label = book_label .. " - partial rainbow fallback"
-    else
-      book_label = book_label .. " - rainbow fallback"
-    end
-  end
 
   -- 3. STAGE: Finish the book session and deliver the physical item into the player's hand
   local success =
@@ -394,20 +255,6 @@ local function create_sciencemeter_book(player, generation_options)
     player.print("Science-Meter blueprint book generated and placed in your cursor!")
   else
     player.print("Failed to generate book. Ensure your science pack list is not empty.")
-  end
-
-  --------------------------
-
-  player.print(
-    "Created science meter display book with " .. blueprints_created .. " blueprints " .. options_output_string
-  )
-  if preset_missed_once then
-    player.print(
-      "Rainbow fallback was used for colors because no (complete) template was available or user requested it."
-    )
-    if templates_found > 0 then
-      player.print("Templates were found for " .. templates_found .. " science packs.")
-    end
   end
 end
 
@@ -470,14 +317,3 @@ commands.add_command(
   "Create a blueprint book. Optionally specify bar width and opacity with 'width=10 opacity=0.75",
   handle_book_command
 )
-
----------------------------------------------------------------------------------------------------
-
----------------------------------------------------------------------------------------------------
-
----@param event EventData.on_singleplayer_init
-script.on_event(defines.events.on_singleplayer_init, function(event)
-  debug_print(game.players[1], script.mod_name .. " in dev mode - debug_print enabled")
-end)
-
----------------------------------------------------------------------------------------------------
