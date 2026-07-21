@@ -251,7 +251,7 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----initiates process - sort-of-main()-function
+---initiates process
 local function handle_book_command(command)
   if not command.player_index then
     game.print("This command must be run by a player.")
