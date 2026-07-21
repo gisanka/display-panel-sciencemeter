@@ -251,7 +251,7 @@ end
 
 ---------------------------------------------------------------------------------------------------
 
----initiates process
+---initiating process of blueprint book generation
 local function handle_book_command(command)
   if not command.player_index then
     game.print("This command must be run by a player.")
