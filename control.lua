@@ -4,13 +4,6 @@ local DisplayPanelApi = require("__display-panel__.public_api")
 local DEFAULT_ALPHA = 0.75
 local DEFAULT_WIDTH = 7
 
----@alias PrototypeName string
-
----@class GenerationOptions
----@field alpha number
----@field width integer
----@field force_rainbow_fallback boolean
-
 ---Finds the category of a prototype name (e.g., "item", "fluid", "recipe")
 ---@param name PrototypeName The internal prototype name to check
 ---@return string|nil category The type category or nil if not found
@@ -70,8 +63,8 @@ end
 
 ---make sure current modpack has display-panel prototypes
 ---@return boolean
-local function has_display_panel_prototypes()
-  return prototypes.entity["display-panel"] and prototypes.item["display-panel"]
+local function has_display_panel_prototype()
+  return prototypes.entity["display-panel"] ~= nil
 end
 
 ---------------------------------------------------------------------------------------------------
@@ -220,7 +213,7 @@ local function create_sciencemeter_book(player, generation_options)
       alpha = generation_options.alpha,
       icon = signal(prototype_name),
     }
-    local panel_config = DisplayPanelApi.new_meter(options)
+    local panel_config = DisplayPanelApi.new_meter(options--[[@as DisplayPanelOptions]])
 
     -- Add this specific page to the player's active session queue
     remote.call("display_panel_book", "add", player.index, panel_config)
@@ -270,7 +263,7 @@ local function handle_book_command(command)
     return
   end
 
-  if not has_display_panel_prototypes() then
+  if not has_display_panel_prototype() then
     player.print("Display panel prototype is not available. Cannot create sciencemeter blueprints.")
     return
   end

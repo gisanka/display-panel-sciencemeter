@@ -21,6 +21,7 @@ local function sanitize_alpha_parameter(alpha_param)
 
   -- "80" represents 80% => 0.8, "0.8" remains 0.8
   if alpha > 1 then
+    ---@cast alpha number
     alpha = alpha / 100
   end
 

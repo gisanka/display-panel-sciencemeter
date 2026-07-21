@@ -74,6 +74,7 @@ local function load_text_helpers()
   end
 
   -- Variant B: text_helpers.lua writes into global TextHelpers.
+  ---@diagnostic disable-next-line: global-in-non-module
   _G.TextHelpers = _G.TextHelpers or {}
 
   local loaded_ok, load_error = pcall(dofile, "scripts/text_helpers.lua")
